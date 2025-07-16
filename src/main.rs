@@ -19,12 +19,28 @@ fn main() {
 	let rc_new = RubiksCube::new();
 	let mut rc = rc_new.clone();
 
-	// use Move::*;
+	use Move::*;
 	// rc.make_moves(vec![Right, Left, Bottom, RightS, Back, Top, BackS, Ys, Z, TopS]); // solution in 10
 	// rc.make_moves(vec![Front, Back, X, Front, Front, Ys, BackS, X, Zs, LeftS, Y]); // solution in 11
 
-	let moves = rc.shuffle(100, &mut rng());
-	dbg!(&moves, moves.len());
+	// rc.make_moves(vec![X, X, Y, Y, Z, Z]);
+	// rc.make_moves(vec![]);
+	// println!("{}", rc.to_string1());
+
+	// let moves = rc.shuffle(100, &mut rng());
+	// dbg!(&moves, moves.len());
+
+	rc = RubiksCube::from_pieces({use Color::*; [
+		       Y,Y,Y,
+		       Y,Y,Y,
+		       Y,Y,Y,
+		R,B,R, G,R,G, O,G,O, B,O,B,
+		B,B,B, R,R,R, G,G,G, O,O,O,
+		R,B,R, G,R,G, O,G,O, B,O,B,
+		       W,W,W,
+		       W,W,W,
+		       W,W,W,
+	]});
 
 	// let solution = rc.solve_uncompressed_sorted_vec(&rc_new);
 	// let solution = rc.solve_compressed_x2_sorted_vec(&rc_new);
@@ -32,11 +48,15 @@ fn main() {
 
 	// let solution = rc.solve_uncompressed_unsorted_vec_without_capacity(&rc_new);
 	// let solution = rc.solve_compressed_x2_unsorted_vec_without_capacity(&rc_new);
-	let solution = rc.solve_compressed_x3_unsorted_vec_without_capacity(&rc_new);
+	// let solution = rc.solve_compressed_x3_unsorted_vec_without_capacity(&rc_new);
 
 	// let solution = rc.solve_uncompressed_unsorted_vec_with_capacity(&rc_new);
 	// let solution = rc.solve_compressed_x2_unsorted_vec_with_capacity(&rc_new);
 	// let solution = rc.solve_compressed_x3_unsorted_vec_with_capacity(&rc_new);
+
+	// let solution = rc.solve_compressed_x3_sorted_vec_smart_without_capacity(&rc_new);
+
+	let solution = rc.solve_compressed_x3_sorted_vec_smart_with_capacity_smart(&rc_new);
 
 	dbg!(&solution, solution.len());
 	let time_end = Instant::now();
@@ -107,22 +127,22 @@ struct RubiksCube {
 }
 impl RubiksCube {
 	const NEW: [Color; 54] = { use Color::*; [
-			  Y,Y,Y,
-			  Y,Y,Y,
-			  Y,Y,Y,
-		B,B,B,R,R,R,G,G,G,O,O,O,
-		B,B,B,R,R,R,G,G,G,O,O,O,
-		B,B,B,R,R,R,G,G,G,O,O,O,
-			  W,W,W,
-			  W,W,W,
-			  W,W,W,
+		       Y,Y,Y,
+		       Y,Y,Y,
+		       Y,Y,Y,
+		B,B,B, R,R,R, G,G,G, O,O,O,
+		B,B,B, R,R,R, G,G,G, O,O,O,
+		B,B,B, R,R,R, G,G,G, O,O,O,
+		       W,W,W,
+		       W,W,W,
+		       W,W,W,
 	]};
 
 	fn new() -> Self {
 		Self { pieces: Self::NEW }
 	}
 
-	fn from(pieces: [Color; 54]) -> Self {
+	fn from_pieces(pieces: [Color; 54]) -> Self {
 		Self { pieces }
 	}
 
@@ -142,7 +162,7 @@ impl RubiksCube {
 	}
 	fn shuffle_once(&mut self, rng: &mut ThreadRng) -> Move {
 		use Move::*;
-		match rng.gen_range(0..=17) {
+		match rng.random_range(0..=17) {
 			0  => { self.front(); Front },
 			1  => { self.front_s(); FrontS },
 			2  => { self.back(); Back },
@@ -202,8 +222,8 @@ impl RubiksCube {
 
 		let rc_init: RubiksCube = self.clone();
 		let rc_final: RubiksCube = other.clone();
-		let mut left_rcs: SortedVec<RubiksCube> = SortedVec::from_array([rc_init.clone()]);
-		let mut right_rcs: SortedVec<RubiksCube> = SortedVec::from_array([rc_final.clone()]);
+		let mut left_rcs: SortedVec<RubiksCube> = SortedVec::from_item(rc_init.clone());
+		let mut right_rcs: SortedVec<RubiksCube> = SortedVec::from_item(rc_final.clone());
 		let mut left_moves: u32 = 0;
 		let mut right_moves: u32 = 0;
 
@@ -307,8 +327,8 @@ impl RubiksCube {
 
 		let rc_init: RubiksCube = self.clone();
 		let rc_final: RubiksCube = other.clone();
-		let mut left_rcs: SortedVec<RubiksCube> = SortedVec::from_array([rc_init.clone()]);
-		let mut right_rcs: SortedVec<RubiksCube> = SortedVec::from_array([rc_final.clone()]);
+		let mut left_rcs: SortedVec<RubiksCube> = SortedVec::from_item(rc_init.clone());
+		let mut right_rcs: SortedVec<RubiksCube> = SortedVec::from_item(rc_final.clone());
 		let mut left_moves: u32 = 0;
 		let mut right_moves: u32 = 0;
 
@@ -317,9 +337,6 @@ impl RubiksCube {
 				"left_moves: {left_moves}, right_moves: {right_moves}, left_rcs.len: {}, right_rsc.len: {}",
 				left_rcs.len(), right_rcs.len()
 			);
-
-			/// approximate array size growth rate
-			const GROWTH_RATE: usize = 13;
 
 			let mut left_rcs_new: Vec<RubiksCube> = Vec::new();
 			if CORES_N == 1 {
@@ -348,7 +365,7 @@ impl RubiksCube {
 			}
 			left_moves += 1;
 			left_rcs = SortedVec::from_vec(left_rcs_new);
-			left_rcs.items.shrink_to_fit();
+			left_rcs.shrink_to_fit();
 
 			println!(
 				"left_moves: {left_moves}, right_moves: {right_moves}, left_rcs.len: {}, right_rsc.len: {}",
@@ -387,7 +404,7 @@ impl RubiksCube {
 			}
 			right_moves += 1;
 			right_rcs = SortedVec::from_vec(right_rcs_new);
-			right_rcs.items.shrink_to_fit();
+			right_rcs.shrink_to_fit();
 
 			if let Some(rc_middle) = left_rcs.intersection_with(&right_rcs) {
 				break rc_middle
@@ -416,8 +433,8 @@ impl RubiksCube {
 
 		let rc_init: RubiksCube = self.clone();
 		let rc_final: RubiksCube = other.clone();
-		let mut left_rcs: SortedVec<RubiksCube> = SortedVec::from_array([rc_init.clone()]);
-		let mut right_rcs: SortedVec<RubiksCube> = SortedVec::from_array([rc_final.clone()]);
+		let mut left_rcs: SortedVec<RubiksCube> = SortedVec::from_item(rc_init.clone());
+		let mut right_rcs: SortedVec<RubiksCube> = SortedVec::from_item(rc_final.clone());
 		let mut left_moves: u32 = 0;
 		let mut right_moves: u32 = 0;
 
@@ -457,7 +474,7 @@ impl RubiksCube {
 			}
 			left_moves += 1;
 			left_rcs = SortedVec::from_vec(left_rcs_new);
-			left_rcs.items.shrink_to_fit();
+			left_rcs.shrink_to_fit();
 
 			println!(
 				"left_moves: {left_moves}, right_moves: {right_moves}, left_rcs.len: {}, right_rsc.len: {}",
@@ -496,7 +513,7 @@ impl RubiksCube {
 			}
 			right_moves += 1;
 			right_rcs = SortedVec::from_vec(right_rcs_new);
-			right_rcs.items.shrink_to_fit();
+			right_rcs.shrink_to_fit();
 
 			if let Some(rc_middle) = left_rcs.intersection_with(&right_rcs) {
 				break rc_middle
@@ -527,8 +544,8 @@ impl RubiksCube {
 
 		let rc_init: RubiksCube = self.clone();
 		let rc_final: RubiksCube = other.clone();
-		let mut left_rcs: SortedVec<RubiksCubeCompressedX2> = SortedVec::from_array([rc_init.to_compressed_x2()]);
-		let mut right_rcs: SortedVec<RubiksCubeCompressedX2> = SortedVec::from_array([rc_final.to_compressed_x2()]);
+		let mut left_rcs: SortedVec<RubiksCubeCompressedX2> = SortedVec::from_item(rc_init.to_compressed_x2());
+		let mut right_rcs: SortedVec<RubiksCubeCompressedX2> = SortedVec::from_item(rc_final.to_compressed_x2());
 		let mut left_moves: u32 = 0;
 		let mut right_moves: u32 = 0;
 
@@ -631,8 +648,8 @@ impl RubiksCube {
 
 		let rc_init: RubiksCube = self.clone();
 		let rc_final: RubiksCube = other.clone();
-		let mut left_rcs: SortedVec<RubiksCubeCompressedX2> = SortedVec::from_array([rc_init.to_compressed_x2()]);
-		let mut right_rcs: SortedVec<RubiksCubeCompressedX2> = SortedVec::from_array([rc_final.to_compressed_x2()]);
+		let mut left_rcs: SortedVec<RubiksCubeCompressedX2> = SortedVec::from_item(rc_init.to_compressed_x2());
+		let mut right_rcs: SortedVec<RubiksCubeCompressedX2> = SortedVec::from_item(rc_final.to_compressed_x2());
 		let mut left_moves: u32 = 0;
 		let mut right_moves: u32 = 0;
 
@@ -641,9 +658,6 @@ impl RubiksCube {
 				"left_moves: {left_moves}, right_moves: {right_moves}, left_rcs.len: {}, right_rsc.len: {}",
 				left_rcs.len(), right_rcs.len()
 			);
-
-			/// approximate array size growth rate
-			const GROWTH_RATE: usize = 13;
 
 			let mut left_rcs_new: Vec<RubiksCubeCompressedX2> = Vec::new();
 			if CORES_N == 1 {
@@ -672,7 +686,7 @@ impl RubiksCube {
 			}
 			left_moves += 1;
 			left_rcs = SortedVec::from_vec(left_rcs_new);
-			left_rcs.items.shrink_to_fit();
+			left_rcs.shrink_to_fit();
 
 			println!(
 				"left_moves: {left_moves}, right_moves: {right_moves}, left_rcs.len: {}, right_rsc.len: {}",
@@ -710,7 +724,7 @@ impl RubiksCube {
 			}
 			right_moves += 1;
 			right_rcs = SortedVec::from_vec(right_rcs_new);
-			right_rcs.items.shrink_to_fit();
+			right_rcs.shrink_to_fit();
 
 			if let Some(rc_middle) = left_rcs.intersection_with(&right_rcs) {
 				break rc_middle
@@ -740,8 +754,8 @@ impl RubiksCube {
 
 		let rc_init: RubiksCube = self.clone();
 		let rc_final: RubiksCube = other.clone();
-		let mut left_rcs: SortedVec<RubiksCubeCompressedX2> = SortedVec::from_array([rc_init.to_compressed_x2()]);
-		let mut right_rcs: SortedVec<RubiksCubeCompressedX2> = SortedVec::from_array([rc_final.to_compressed_x2()]);
+		let mut left_rcs: SortedVec<RubiksCubeCompressedX2> = SortedVec::from_item(rc_init.to_compressed_x2());
+		let mut right_rcs: SortedVec<RubiksCubeCompressedX2> = SortedVec::from_item(rc_final.to_compressed_x2());
 		let mut left_moves: u32 = 0;
 		let mut right_moves: u32 = 0;
 
@@ -781,7 +795,7 @@ impl RubiksCube {
 			}
 			left_moves += 1;
 			left_rcs = SortedVec::from_vec(left_rcs_new);
-			left_rcs.items.shrink_to_fit();
+			left_rcs.shrink_to_fit();
 
 			println!(
 				"left_moves: {left_moves}, right_moves: {right_moves}, left_rcs.len: {}, right_rsc.len: {}",
@@ -819,7 +833,7 @@ impl RubiksCube {
 			}
 			right_moves += 1;
 			right_rcs = SortedVec::from_vec(right_rcs_new);
-			right_rcs.items.shrink_to_fit();
+			right_rcs.shrink_to_fit();
 
 			if let Some(rc_middle) = left_rcs.intersection_with(&right_rcs) {
 				break rc_middle
@@ -851,8 +865,8 @@ impl RubiksCube {
 
 		let rc_init: RubiksCube = self.clone();
 		let rc_final: RubiksCube = other.clone();
-		let mut left_rcs: SortedVec<RubiksCubeCompressedX3> = SortedVec::from_array([rc_init.to_compressed_x3()]);
-		let mut right_rcs: SortedVec<RubiksCubeCompressedX3> = SortedVec::from_array([rc_final.to_compressed_x3()]);
+		let mut left_rcs: SortedVec<RubiksCubeCompressedX3> = SortedVec::from_item(rc_init.to_compressed_x3());
+		let mut right_rcs: SortedVec<RubiksCubeCompressedX3> = SortedVec::from_item(rc_final.to_compressed_x3());
 		let mut left_moves: u32 = 0;
 		let mut right_moves: u32 = 0;
 
@@ -955,8 +969,8 @@ impl RubiksCube {
 
 		let rc_init: RubiksCube = self.clone();
 		let rc_final: RubiksCube = other.clone();
-		let mut left_rcs: SortedVec<RubiksCubeCompressedX3> = SortedVec::from_array([rc_init.to_compressed_x3()]);
-		let mut right_rcs: SortedVec<RubiksCubeCompressedX3> = SortedVec::from_array([rc_final.to_compressed_x3()]);
+		let mut left_rcs: SortedVec<RubiksCubeCompressedX3> = SortedVec::from_item(rc_init.to_compressed_x3());
+		let mut right_rcs: SortedVec<RubiksCubeCompressedX3> = SortedVec::from_item(rc_final.to_compressed_x3());
 		let mut left_moves: u32 = 0;
 		let mut right_moves: u32 = 0;
 
@@ -965,9 +979,6 @@ impl RubiksCube {
 				"left_moves: {left_moves}, right_moves: {right_moves}, left_rcs.len: {}, right_rsc.len: {}",
 				left_rcs.len(), right_rcs.len()
 			);
-
-			/// approximate array size growth rate
-			const GROWTH_RATE: usize = 13;
 
 			let mut left_rcs_new: Vec<RubiksCubeCompressedX3> = Vec::new();
 			if CORES_N == 1 {
@@ -996,7 +1007,7 @@ impl RubiksCube {
 			}
 			left_moves += 1;
 			left_rcs = SortedVec::from_vec(left_rcs_new);
-			left_rcs.items.shrink_to_fit();
+			left_rcs.shrink_to_fit();
 
 			println!(
 				"left_moves: {left_moves}, right_moves: {right_moves}, left_rcs.len: {}, right_rsc.len: {}",
@@ -1034,7 +1045,7 @@ impl RubiksCube {
 			}
 			right_moves += 1;
 			right_rcs = SortedVec::from_vec(right_rcs_new);
-			right_rcs.items.shrink_to_fit();
+			right_rcs.shrink_to_fit();
 
 			if let Some(rc_middle) = left_rcs.intersection_with(&right_rcs) {
 				break rc_middle
@@ -1064,8 +1075,8 @@ impl RubiksCube {
 
 		let rc_init: RubiksCube = self.clone();
 		let rc_final: RubiksCube = other.clone();
-		let mut left_rcs: SortedVec<RubiksCubeCompressedX3> = SortedVec::from_array([rc_init.to_compressed_x3()]);
-		let mut right_rcs: SortedVec<RubiksCubeCompressedX3> = SortedVec::from_array([rc_final.to_compressed_x3()]);
+		let mut left_rcs: SortedVec<RubiksCubeCompressedX3> = SortedVec::from_item(rc_init.to_compressed_x3());
+		let mut right_rcs: SortedVec<RubiksCubeCompressedX3> = SortedVec::from_item(rc_final.to_compressed_x3());
 		let mut left_moves: u32 = 0;
 		let mut right_moves: u32 = 0;
 
@@ -1105,7 +1116,7 @@ impl RubiksCube {
 			}
 			left_moves += 1;
 			left_rcs = SortedVec::from_vec(left_rcs_new);
-			left_rcs.items.shrink_to_fit();
+			left_rcs.shrink_to_fit();
 
 			println!(
 				"left_moves: {left_moves}, right_moves: {right_moves}, left_rcs.len: {}, right_rsc.len: {}",
@@ -1143,7 +1154,7 @@ impl RubiksCube {
 			}
 			right_moves += 1;
 			right_rcs = SortedVec::from_vec(right_rcs_new);
-			right_rcs.items.shrink_to_fit();
+			right_rcs.shrink_to_fit();
 
 			if let Some(rc_middle) = left_rcs.intersection_with(&right_rcs) {
 				break rc_middle
@@ -1164,6 +1175,220 @@ impl RubiksCube {
 			].concat()
 		}
 	}
+
+	fn solve_compressed_x3_sorted_vec_smart_without_capacity(&self, other: &RubiksCube) -> Vec<Move> {
+		trait Solve { fn solve(&self, other: &Self) -> Vec<Move>; }
+		impl Solve for RubiksCube { fn solve(&self, other: &Self) -> Vec<Move> {
+			self.solve_compressed_x3_sorted_vec_smart_without_capacity(other)
+		} }
+
+		let rc_init: RubiksCube = self.clone();
+		let rc_final: RubiksCube = other.clone();
+		let mut left_rcs: SortedVec<RubiksCubeCompressedX3> = SortedVec::from_item(rc_init.to_compressed_x3());
+		let mut right_rcs: SortedVec<RubiksCubeCompressedX3> = SortedVec::from_item(rc_final.to_compressed_x3());
+		let mut left_moves: u32 = 0;
+		let mut right_moves: u32 = 0;
+
+		let rc_middle = loop {
+			println!(
+				"left_moves: {left_moves}, right_moves: {right_moves}, left_rcs.len: {}, right_rsc.len: {}",
+				left_rcs.len(), right_rcs.len()
+			);
+
+			left_rcs = if CORES_N == 1 {
+				let mut left_rcs_new: Vec<RubiksCubeCompressedX3> = Vec::new();
+				for rc in left_rcs.items.iter() {
+					for rc_new in rc.to_rc().juxt() {
+						left_rcs_new.push(rc_new.to_compressed_x3());
+					}
+				}
+				SortedVec::from_vec(left_rcs_new)
+			}
+			else {
+				let chunk_size: usize = left_rcs.len().div_ceil(CORES_N);
+				let left_rcs_new_parts: Vec<SortedVec<RubiksCubeCompressedX3>> = left_rcs.items
+					.into_par_iter()
+					.chunks(chunk_size)
+					.map(|rcs| {
+						let mut rcs_new: Vec<RubiksCubeCompressedX3> = Vec::new();
+						for rc in rcs.iter() {
+							for rc_new in rc.to_rc().juxt() {
+								rcs_new.push(rc_new.to_compressed_x3());
+							}
+						}
+						SortedVec::from_vec(rcs_new)
+					})
+					.collect();
+				SortedVec::from_sorted_vecs(left_rcs_new_parts)
+			};
+			left_moves += 1;
+			left_rcs.shrink_to_fit();
+
+			println!(
+				"left_moves: {left_moves}, right_moves: {right_moves}, left_rcs.len: {}, right_rsc.len: {}",
+				left_rcs.len(), right_rcs.len()
+			);
+
+			if let Some(rc_middle) = left_rcs.intersection_with(&right_rcs) {
+				break rc_middle
+			}
+
+			right_rcs = if CORES_N == 1 {
+				let mut right_rcs_new: Vec<RubiksCubeCompressedX3> = Vec::new();
+				for rc in right_rcs.items.iter() {
+					for rc_new in rc.to_rc().juxt() {
+						right_rcs_new.push(rc_new.to_compressed_x3());
+					}
+				}
+				SortedVec::from_vec(right_rcs_new)
+			}
+			else {
+				let chunk_size: usize = right_rcs.len().div_ceil(CORES_N);
+				let right_rcs_new_parts: Vec<SortedVec<RubiksCubeCompressedX3>> = right_rcs.items
+					.into_par_iter()
+					.chunks(chunk_size)
+					.map(|rcs| {
+						let mut rcs_new: Vec<RubiksCubeCompressedX3> = Vec::new();
+						for rc in rcs.iter() {
+							for rc_new in rc.to_rc().juxt() {
+								rcs_new.push(rc_new.to_compressed_x3());
+							}
+						}
+						SortedVec::from_vec(rcs_new)
+					})
+					.collect();
+				SortedVec::from_sorted_vecs(right_rcs_new_parts)
+			};
+			right_moves += 1;
+			right_rcs.shrink_to_fit();
+
+			if let Some(rc_middle) = left_rcs.intersection_with(&right_rcs) {
+				break rc_middle
+			}
+		};
+
+		// println!("rc_middle:\n{}", rc_middle.to_string1());
+
+		if left_moves + right_moves == 1 {
+			assert_eq!(right_moves, 0);
+			vec![ALL_MOVES[rc_init.juxt().into_iter().position(|rc| rc == rc_final).unwrap()].clone()]
+		}
+		else {
+			let rc_middle = rc_middle.to_rc();
+			[
+				rc_init.solve(&rc_middle),
+				rc_middle.solve(&rc_final),
+			].concat()
+		}
+	}
+
+	fn solve_compressed_x3_sorted_vec_smart_with_capacity_smart(&self, other: &RubiksCube) -> Vec<Move> {
+		trait Solve { fn solve(&self, other: &Self) -> Vec<Move>; }
+		impl Solve for RubiksCube { fn solve(&self, other: &Self) -> Vec<Move> {
+			self.solve_compressed_x3_sorted_vec_smart_with_capacity_smart(other)
+		} }
+
+		let rc_init: RubiksCube = self.clone();
+		let rc_final: RubiksCube = other.clone();
+		let mut left_rcs: SortedVec<RubiksCubeCompressedX3> = SortedVec::from_item(rc_init.to_compressed_x3());
+		let mut right_rcs: SortedVec<RubiksCubeCompressedX3> = SortedVec::from_item(rc_final.to_compressed_x3());
+		let mut left_moves: u32 = 0;
+		let mut right_moves: u32 = 0;
+
+		let rc_middle = loop {
+			println!(
+				"left_moves: {left_moves}, right_moves: {right_moves}, left_rcs.len: {}, right_rsc.len: {}",
+				left_rcs.len(), right_rcs.len()
+			);
+
+			left_rcs = if CORES_N == 1 {
+				let mut left_rcs_new: Vec<RubiksCubeCompressedX3> = Vec::with_capacity(left_rcs.len() * 18);
+				for rc in left_rcs.items.iter() {
+					for rc_new in rc.to_rc().juxt() {
+						left_rcs_new.push(rc_new.to_compressed_x3());
+					}
+				}
+				SortedVec::from_vec(left_rcs_new)
+			}
+			else {
+				let chunk_size: usize = left_rcs.len().div_ceil(CORES_N);
+				let left_rcs_new_parts: Vec<SortedVec<RubiksCubeCompressedX3>> = left_rcs.items
+					.into_par_iter()
+					.chunks(chunk_size)
+					.map(|rcs| {
+						let mut rcs_new: Vec<RubiksCubeCompressedX3> = Vec::with_capacity(rcs.len() * 18);
+						for rc in rcs.iter() {
+							for rc_new in rc.to_rc().juxt() {
+								rcs_new.push(rc_new.to_compressed_x3());
+							}
+						}
+						SortedVec::from_vec(rcs_new)
+					})
+					.collect();
+				SortedVec::from_sorted_vecs(left_rcs_new_parts)
+			};
+			left_moves += 1;
+			left_rcs.shrink_to_fit();
+
+			println!(
+				"left_moves: {left_moves}, right_moves: {right_moves}, left_rcs.len: {}, right_rsc.len: {}",
+				left_rcs.len(), right_rcs.len()
+			);
+
+			if let Some(rc_middle) = left_rcs.intersection_with(&right_rcs) {
+				break rc_middle
+			}
+
+			right_rcs = if CORES_N == 1 {
+				let mut right_rcs_new: Vec<RubiksCubeCompressedX3> = Vec::with_capacity(right_rcs.len() * 18);
+				for rc in right_rcs.items.iter() {
+					for rc_new in rc.to_rc().juxt() {
+						right_rcs_new.push(rc_new.to_compressed_x3());
+					}
+				}
+				SortedVec::from_vec(right_rcs_new)
+			}
+			else {
+				let chunk_size: usize = right_rcs.len().div_ceil(CORES_N);
+				let right_rcs_new_parts: Vec<SortedVec<RubiksCubeCompressedX3>> = right_rcs.items
+					.into_par_iter()
+					.chunks(chunk_size)
+					.map(|rcs| {
+						let mut rcs_new: Vec<RubiksCubeCompressedX3> = Vec::with_capacity(rcs.len() * 18);
+						for rc in rcs.iter() {
+							for rc_new in rc.to_rc().juxt() {
+								rcs_new.push(rc_new.to_compressed_x3());
+							}
+						}
+						SortedVec::from_vec(rcs_new)
+					})
+					.collect();
+				SortedVec::from_sorted_vecs(right_rcs_new_parts)
+			};
+			right_moves += 1;
+			right_rcs.shrink_to_fit();
+
+			if let Some(rc_middle) = left_rcs.intersection_with(&right_rcs) {
+				break rc_middle
+			}
+		};
+
+		// println!("rc_middle:\n{}", rc_middle.to_string1());
+
+		if left_moves + right_moves == 1 {
+			assert_eq!(right_moves, 0);
+			vec![ALL_MOVES[rc_init.juxt().into_iter().position(|rc| rc == rc_final).unwrap()].clone()]
+		}
+		else {
+			let rc_middle = rc_middle.to_rc();
+			[
+				rc_init.solve(&rc_middle),
+				rc_middle.solve(&rc_final),
+			].concat()
+		}
+	}
+
+
 
 	fn to_compressed_x2(&self) -> RubiksCubeCompressedX2 {
 		RubiksCubeCompressedX2::from_rc(self.clone())
@@ -1473,16 +1698,27 @@ impl<T: Clone + PartialOrd + Ord> SortedVec<T> {
 		Self { items: vec![] }
 	}
 
+	fn from_item(item: T) -> Self {
+		Self { items: vec![item] }
+	}
+
 	fn from_vec(mut items: Vec<T>) -> Self {
-		items.sort();
+		items.sort_unstable();
 		items.dedup();
 		Self { items }
 	}
 
+	// fn from_vecs(mut items_vec: Vec<Vec<T>>) -> Self {
+	// 	for items in items_vec.iter_mut() {
+	// 		items_vec.sort();
+	// 		items_vec.dedup();
+	// 	}
+	// 	Self::from_sorted_vecs(items_vec)
+	// }
+
 	fn from_array<const N: usize>(items: [T; N]) -> Self {
-		let mut items = items.to_vec();
-		items.sort();
-		Self { items }
+		let items = items.to_vec();
+		Self::from_vec(items)
 	}
 
 	fn from_sorted_vecs(sorted_vecs: Vec<SortedVec<T>>) -> Self {
@@ -1514,6 +1750,10 @@ impl<T: Clone + PartialOrd + Ord> SortedVec<T> {
 
 	fn len(&self) -> usize {
 		self.items.len()
+	}
+
+	fn shrink_to_fit(&mut self) {
+		self.items.shrink_to_fit();
 	}
 
 	fn insert(&mut self, item: T) {
@@ -1610,16 +1850,16 @@ mod rubiks_cube {
 			let mut rc = RubiksCube::new();
 			rc.front();
 			assert_eq!(
-				RubiksCube::from([
-						  Y,Y,Y,
-						  Y,Y,Y,
-						  B,B,B,
-					B,B,W,R,R,R,Y,G,G,O,O,O,
-					B,B,W,R,R,R,Y,G,G,O,O,O,
-					B,B,W,R,R,R,Y,G,G,O,O,O,
-						  G,G,G,
-						  W,W,W,
-						  W,W,W,
+				RubiksCube::from_pieces([
+					       Y,Y,Y,
+					       Y,Y,Y,
+					       B,B,B,
+					B,B,W, R,R,R, Y,G,G, O,O,O,
+					B,B,W, R,R,R, Y,G,G, O,O,O,
+					B,B,W, R,R,R, Y,G,G, O,O,O,
+					       G,G,G,
+					       W,W,W,
+					       W,W,W,
 				]),
 				rc
 			)
