@@ -1289,20 +1289,20 @@ impl RubiksCube {
 		self.right_s();
 	}
 	fn y(&mut self) {
-		self.top_s();
-		self.bottom();
-	}
-	fn y_s(&mut self) {
 		self.top();
 		self.bottom_s();
 	}
-	fn z(&mut self) {
-		self.front_s();
-		self.back();
+	fn y_s(&mut self) {
+		self.top_s();
+		self.bottom();
 	}
-	fn z_s(&mut self) {
+	fn z(&mut self) {
 		self.front();
 		self.back_s();
+	}
+	fn z_s(&mut self) {
+		self.front_s();
+		self.back();
 	}
 
 	fn to_string1(&self) -> String {
